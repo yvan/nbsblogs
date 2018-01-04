@@ -1,1 +1,1 @@
-export SC2PATH='/home/yvan/projects/pysc2_tut/StarCraftII/'
+export SC2PATH='/Users/yvanscher/StarCraft II/'
