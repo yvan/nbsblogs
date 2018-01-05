@@ -52,28 +52,6 @@ class Agent1(base_agent.BaseAgent):
         # if we can't move, we havent selected our army, so selecto ur army
         else:
             return actions.FunctionCall(_SELECT_ARMY, [_SELECT_ALL])
-# you need FLAGS to be set
-# to run the environment
-FLAGS = flags.FLAGS
-FLAGS(['run_sc2'])
-
-# some runtime parameters
-viz = False
-steps = 2000
-save_replay = True
-
-# create a map
-beacon_map = maps.get('MoveToBeacon')
-
-# create an envirnoment
-with sc2_env.SC2Env(agent_race=None, bot_race=None, difficulty=None, map_name=beacon_map, visualize=viz) as env:
-    # run the agent in the environment
-    agent=Agent1()
-    run_loop.run_loop([agent], env, steps)
-    if save_replay:
-        env.save_replay(Agent1.__name__)
-
-print('Average reward per episode: {}'.format(agent.reward/agent.episodes))
 
 '''
 Run script with:

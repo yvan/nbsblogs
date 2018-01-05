@@ -38,26 +38,6 @@ class Agent2(base_agent.BaseAgent):
             return actions.FunctionCall(_MOVE_SCREEN, [_NOT_QUEUED, target])
         else:
             return actions.FunctionCall(_SELECT_ARMY, [_SELECT_ALL])
-        
-FLAGS = flags.FLAGS
-FLAGS(['run_sc2'])
-
-viz = True
-steps = 2000
-save_replay = False
-steps_per_episode = 0 # 0 actually means unlimited
-
-# create a map
-beacon_map = maps.get('MoveToBeacon')
-
-# create an envirnoment
-with sc2_env.SC2Env(agent_race=None, bot_race=None, difficulty=None, map_name=beacon_map, visualize=viz) as env:
-    agent=Agent2()
-    run_loop.run_loop([agent], env, steps)
-    if save_replay:
-        env.save_replay(Agent2.__name__)
-        
-print('Average reward per episode: {}'.format(agent.reward/agent.episodes))
 
 '''
 Run script with:
