@@ -1,0 +1,4 @@
+conda create -n pygl_visualizer python=3 -y
+source activate pygl_visualizer
+conda install jupyter notebook -y
+pip install pyglet
