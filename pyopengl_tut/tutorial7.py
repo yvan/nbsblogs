@@ -9,6 +9,10 @@ here the struct called Material
 we can store things in arrays for cleaner code.
 
 this script is basically doing the same thing as tutorial 6 but with more lights
+
+while have been specifying uniform values on each render pass but dont actuall
+need to because the values get stored with the shader while its in use. so
+    pass
 '''
 
 from OpenGLContext import testingcontext
@@ -109,7 +113,7 @@ class TestContext(BaseContext):
         ]
 
         self.uniform_locations = {}
-        for uniform, value in self.UNIFORM_VALUES:
+        for uniform, _ in self.UNIFORM_VALUES:
             location = glGetUniformLocation(self.shader, uniform)
             if location in (None, -1):
                 print('Warning, no uniform: {}'.format(uniform))
@@ -126,21 +130,23 @@ class TestContext(BaseContext):
                 print('Warning no attribute: {}'.format(attribute))
             setattr(self, attribute+'_loc', location)
 
+        # i change dthis from the tutorial to not be dumb
+        # why make a list with 2 things per row when you
+        # only use one lol?
         self.LIGHTS = array([
-            x[1] for x in [
-                ('lights[0].ambient',(.05,.05,.05,1.0)),
-                ('lights[0].diffuse',(.3,.3,.3,1.0)),
-                ('lights[0].specular',(1.0,0.0,0.0,1.0)),
-                ('lights[0].position',(4.0,2.0,10.0,0.0)),
-                ('lights[1].ambient',(.05,.05,.05,1.0)),
-                ('lights[1].diffuse',(.3,.3,.3,1.0)),
-                ('lights[1].specular',(0.0,1.0,0.0,1.0)),
-                ('lights[1].position',(-4.0,2.0,10.0,0.0)),
-                ('lights[2].ambient',(.05,.05,.05,1.0)),
-                ('lights[2].diffuse',(.3,.3,.3,1.0)),
-                ('lights[2].specular',(0.0,0.0,1.0,1.0)),
-                ('lights[2].position',(-4.0,2.0,-10.0,0.0)),
-            ]
+               [(.05,.05,.05,1.0), #'lights[0].ambient'
+                (.3,.3,.3,1.0), #'lights[0].diffuse'
+                (1.0,0.0,0.0,1.0),#'lights[0].specular'
+                (4.0,2.0,10.0,0.0),#'lights[0].position
+                (.05,.05,.05,1.0),#'lights[1].ambient'
+                (.3,.3,.3,1.0),#'lights[1].diffuse'
+                (0.0,1.0,0.0,1.0),#'lights[1].specular'
+                (-4.0,2.0,10.0,0.0),# 'lights[1].position
+                (.05,.05,.05,1.0),#('lights[2].ambient',
+                (.3,.3,.3,1.0),#lights[2].diffuse'
+                (0.0,0.0,1.0,1.0),#'lights[2].specular'
+                (-4.0,2.0,-10.0,0.0)#'lights[2].position
+                ]
         ], 'f')
 
     def Render(self, mode=None):
@@ -152,11 +158,8 @@ class TestContext(BaseContext):
             stride = self.coords.data[0].nbytes
             try:
                 glUniform4fv(self.uniform_locations['lights'],
-                12,
-                self.LIGHTS)
-                test_lights = (GLfloat*12)()
-                glGetUniformfv(self.shader, self.uniform_locations['lights'], test_lights)
-                # print('Lights', list(test_lights))
+                12, self.LIGHTS)
+
                 for uniform, value in self.UNIFORM_VALUES:
                     location = self.uniform_locations.get(uniform)
                     if location not in (None, -1):
@@ -166,6 +169,7 @@ class TestContext(BaseContext):
                             glUniform3f(location, *value)
                         elif len(value) == 1:
                             glUniform1f(location, *value)
+                # setup all our vertices /normals and draw them
                 glEnableVertexAttribArray(self.Vertex_position_loc)
                 glEnableVertexAttribArray(self.Vertex_normal_loc)
                 glVertexAttribPointer(self.Vertex_position_loc,

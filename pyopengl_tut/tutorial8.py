@@ -1,5 +1,7 @@
 '''
 otimizing tutorial 7
+the main benefot here is moving constants into their own little script, as well
+as moving most of the logic into the into the vertex shader
 
 http://pyopengl.sourceforge.net/context/tutorials/shader_8.html
 
@@ -14,17 +16,22 @@ from OpenGL.GL import shaders
 from OpenGLContext.scenegraph.basenodes import Sphere
 
 class TestContext(BaseContext):
+    LIGHT_COUNT = 3
+    LIGHT_SIZE = 4
     def OnInit(self):
-        # new structure that contains
-        # material properties
-        materialStruct = '''
-        struct Material {
-            vec4 ambient;
-            vec4 diffuse;
-            vec4 specular;
-            float shininess;
-        };
-        '''
+
+        lightConst = '''
+        const int LIGHT_COUNT = %s;
+        const int LIGHT_SIZE = %s;
+        const int AMBIENT = 0;
+        const int DIFFUSE = 1;
+        const int SPECULAR = 2;
+        const int POSITION = 3;
+        uniform vec4 lights[LIGHT_COUNT*LIGHT_SIZE];
+        varying vec3 EC_Light_half[LIGHT_COUNT];
+        varying vec3 EC_Light_location[LIGHT_COUNT];
+        varying vec3 baseNormal;
+        ''' % (self.LIGHT_COUNT, self.LIGHT_SIZE)
 
         phong_weightCalc = '''
         vec2 phong_weightCalc(
@@ -42,41 +49,37 @@ class TestContext(BaseContext):
         }
         '''
 
-        vs = '''
+        vs = lightConst + '''
         attribute vec3 Vertex_position;
         attribute vec3 Vertex_normal;
-        varying vec3 baseNormal;
         void main(){
             gl_Position = gl_ModelViewProjectionMatrix * vec4(Vertex_position, 1.0);
             baseNormal = gl_NormalMatrix * normalize(Vertex_normal);
+            for (int i=0; i<LIGHT_COUNT; i++){
+                EC_Light_location[i] = normalize(gl_NormalMatrix * lights[(i*LIGHT_SIZE)+POSITION].xyz);
+                EC_Light_half[i] = normalize(EC_Light_location[i] - vec3(0,0,-1));
+            }
         }
         '''
         vertex = shaders.compileShader(vs, GL_VERTEX_SHADER)
 
-        fs = '''
-        //define 3 lights containing
-        // ambient, diffuse, and specular, and position (4 things)
-        // 4(vectors per light)*3(lights) = 12?
+        fs = lightConst + phong_weightCalc + '''
+        struct Material {
+            vec4 ambient;
+            vec4 diffuse;
+            vec4 specular;
+            float shininess;
+        };
         uniform Material material;
-        uniform vec4 lights [12];
         uniform vec4 Global_ambient;
-        varying vec3 baseNormal;
         void main(){
             vec4 fragColor = Global_ambient * material.ambient;
-            int AMBIENT = 0;
-            int DIFFUSE = 1;
-            int SPECULAR = 2;
-            int POSITION = 3;
-            int i;
-            for (i=0; i<12;i=i+4){
-                //normalize light location, eye coordinates
-                vec3 EC_Light_location = normalize(gl_NormalMatrix * lights[i+POSITION].xyz);
-                // half light vector calculation
-                vec3 Light_half = normalize(EC_Light_location - vec3(0,0,-1));
-                //get phong weights
+            int i,j;
+            for (i=0; i<LIGHT_COUNT;i++){
+                j = i * LIGHT_SIZE;
                 vec2 weights = phong_weightCalc(
-                    EC_Light_location,
-                    Light_half,
+                    EC_Light_location[i],
+                    EC_Light_half[i],
                     baseNormal,
                     material.shininess
                 );
@@ -90,7 +93,7 @@ class TestContext(BaseContext):
             gl_FragColor = fragColor;
         }
         '''
-        fragment = shaders.compileShader(phong_weightCalc + materialStruct + fs, GL_FRAGMENT_SHADER)
+        fragment = shaders.compileShader(fs, GL_FRAGMENT_SHADER)
         self.shader = shaders.compileProgram(vertex, fragment)
         self.coords,self.indices, self.count = Sphere(radius=1).compile()
 
@@ -121,24 +124,24 @@ class TestContext(BaseContext):
             setattr(self, attribute+'_loc', location)
 
         self.LIGHTS = array([
-            x[1] for x in [
-                ('lights[0].ambient',(.05,.05,.05,1.0)),
-                ('lights[0].diffuse',(.3,.3,.3,1.0)),
-                ('lights[0].specular',(1.0,0.0,0.0,1.0)),
-                ('lights[0].position',(4.0,2.0,10.0,0.0)),
-                ('lights[1].ambient',(.05,.05,.05,1.0)),
-                ('lights[1].diffuse',(.3,.3,.3,1.0)),
-                ('lights[1].specular',(0.0,1.0,0.0,1.0)),
-                ('lights[1].position',(-4.0,2.0,10.0,0.0)),
-                ('lights[2].ambient',(.05,.05,.05,1.0)),
-                ('lights[2].diffuse',(.3,.3,.3,1.0)),
-                ('lights[2].specular',(0.0,0.0,1.0,1.0)),
-                ('lights[2].position',(-4.0,2.0,-10.0,0.0)),
-            ]
+               [(.05,.05,.05,1.0), #'lights[0].ambient'
+                (.3,.3,.3,1.0), #'lights[0].diffuse'
+                (1.0,0.0,0.0,1.0),#'lights[0].specular'
+                (4.0,2.0,10.0,0.0),#'lights[0].position
+                (.05,.05,.05,1.0),#'lights[1].ambient'
+                (.3,.3,.3,1.0),#'lights[1].diffuse'
+                (0.0,1.0,0.0,1.0),#'lights[1].specular'
+                (-4.0,2.0,10.0,0.0),# 'lights[1].position
+                (.05,.05,.05,1.0),#('lights[2].ambient',
+                (.3,.3,.3,1.0),#lights[2].diffuse'
+                (0.0,0.0,1.0,1.0),#'lights[2].specular'
+                (-4.0,2.0,-10.0,0.0)#'lights[2].position
+                ]
         ], 'f')
-
     def Render(self, mode=None):
         BaseContext.Render(self, mode)
+        if not mode.visible:
+            return
         glUseProgram(self.shader)
         try:
             self.coords.bind()
@@ -146,11 +149,7 @@ class TestContext(BaseContext):
             stride = self.coords.data[0].nbytes
             try:
                 glUniform4fv(self.uniform_locations['lights'],
-                12,
-                self.LIGHTS)
-                test_lights = (GLfloat*12)()
-                glGetUniformfv(self.shader, self.uniform_locations['lights'], test_lights)
-                # print('Lights', list(test_lights))
+                self.LIGHT_COUNT*self.LIGHT_SIZE, self.LIGHTS)
                 for uniform, value in self.UNIFORM_VALUES:
                     location = self.uniform_locations.get(uniform)
                     if location not in (None, -1):
