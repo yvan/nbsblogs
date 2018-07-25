@@ -1,5 +1,5 @@
 '''
-http://pyopengl.sourceforge.net/context/tutorials/shader_1.html
+http://pyopengl.sourceforge.net/context/tutorials/shader_2.html
 
 you can pack color data and position data in the same vbo then give offsets to
 glVertexPointer and glColorPointer so each certain portions of the data in the
