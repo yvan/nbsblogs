@@ -54,7 +54,7 @@ class TestContext(BaseContext):
 
             // set the specular reflection to 0
             float n_dot_half = 0.0;
-            if (n_dot_pos >= 0.0){
+            if (n_dot_pos >= -0.05){
                 // get the transformed dot product of the 'half light'
                 // this is our new speccular reflection weight
                 n_dot_half = pow(max(0.0, dot(half_light, frag_normal)), shininess);
@@ -121,7 +121,8 @@ class TestContext(BaseContext):
         '''
         fragment = shaders.compileShader(phong_weightCalc + fs, GL_FRAGMENT_SHADER)
         self.shader = shaders.compileProgram(vertex, fragment)
-        # create two vbos to represent a sphere
+        # create two vbos to represent a sphere, coordinates and indicies
+        # and return a count to tell us how many things to display
         self.coords, self.indices, self.count = Sphere(radius=1).compile()
 
         # setup uniform values,
