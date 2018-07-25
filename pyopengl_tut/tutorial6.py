@@ -1,40 +1,35 @@
 '''
-specular highlights indexed geometry, directional lighting
-
 http://pyopengl.sourceforge.net/context/tutorials/shader_6.html
 
-this tutorial focuses on lighting but theres a few other concepts as well.
+specular highlights indexed geometry, directional lighting this tutorial focuses
+on lighting but theres a few other concepts as well.
 
-indexed rendering - instead of using a manually created set of cooords for triangles
-we can use a pre built structure like the sphere which contains two vbos one with
-vetex data and one with indices the render order is then read from the indicies
-that way we can reuse a vertex by addin gits index again and save space on the gpu.
+indexed rendering - instead of using a manually created set of coordinates for
+triangles we can use a pre built structure like the sphere which contains two
+vbos one with vetex data and one with indices the render order is then read from
+the indicies that way we can reuse a vertex by adding its index again and save
+space on the gpu.
 
-fragment shading - applying a different lighting value in the fragment shader
-to make things look better
+phong/blinn reflectance /shininess - not sure i totally understand whats going
+on here or why we simplified the equation. ok i think i get it. this wikipedia
+page clarified things somewhat:
+https://en.wikipedia.org/wiki/Blinn%E2%80%93Phong_shading_model
 
-phong/blinn reflectance /shininess - not sure i totally understand whats going on here or
-why we simplified the equation. ok i think i get it. this wikipedia page clarified
-things somewhat: https://en.wikipedia.org/wiki/Blinn%E2%80%93Phong_shading_model
-basically instead of repeatedly calculating the angle between R and V (the angle we are
-currently viewing to the reflected light) we calculate a precomputed vector in between
-the light source vector and the vector of the viewer of the light.
+basically instead of repeatedly calculating the angle between R and V (the angle
+we are currently viewing to the reflected specular light) we calculate a
+precomputed vector in between the light source vector and the vector of the
+viewer of the light.
 
-another thing the main graphic on the wikipedia page solves is understanding how to think about
-the vectors. just think of them all pointing out of the surface, the explanation
-on mathis fun is really good basicalluy we want the component of the normal, the
-thing that represents teh way this fragment is facing, that lies along the light
-ray. if the result of dot prodct is 0 the angle is 90. and we return 0 below.
-if the angle is greater than 90 we will get a negative dot product. below we accept
-small negative dot products up to -0.05. apparently this helps us get softer light?
-i mean in theory this helps us get softer light. the thing is if we have any negative
-dot product beyond that the function returns nothing. maybe opengl returns 0 by default
-
-
-
-i'm not sure the ambient and diffuse shaders are actually CONTRIBUTING anything to the
-visuals here as when i take them out nothing changes, and when i take out the specular light
-the whole sphere disappears? so seems like they do nothing here.
+another thing the main graphic on the wikipedia page solves is understanding how
+to think about the vectors. just think of them all pointing out of the surface,
+the explanation on mathisfun is really good basically we want the component of
+the normal, the thing that represents teh way this fragment is facing, that lies
+along the light ray. if the result of dot prodct is 0 the angle is 90. and we
+return 0 below. if the angle is greater than 90 we will get a negative dot
+product. below we accept small negative dot products up to -0.05. apparently
+this helps us get softer light? i mean in theory this helps us get softer light.
+the thing is if we have any negative dot product beyond that the function
+returns 0.
 '''
 
 from OpenGLContext import testingcontext
@@ -54,18 +49,20 @@ class TestContext(BaseContext):
             in vec3 frag_normal,
             in float shininess
         ){
-            // get the dot product of the noraml and the light ray
-            // if the dot product is 0
+            // get the dot product of the normal and the light ray
             float n_dot_pos = max(0.0, dot(frag_normal, light_pos));
+
+            // set the specular reflection to 0
             float n_dot_half = 0.0;
-            if (n_dot_pos > -0.05){
+            if (n_dot_pos >= 0.0){
                 // get the transformed dot product of the 'half light'
+                // this is our new speccular reflection weight
                 n_dot_half = pow(max(0.0, dot(half_light, frag_normal)), shininess);
-                // return both the light and half light, n_dot_pos is the
-                // weight of the diffuse light, n_dot_half is the weight
-                // for the specular light
-                return vec2(n_dot_pos, n_dot_half);
             }
+            // return both the diffuse and specular reflection, n_dot_pos is the
+            // weight of the diffuse light, n_dot_half is the weight for the
+            // specular light
+            return vec2(n_dot_pos, n_dot_half);
         }
         '''
 
@@ -97,8 +94,10 @@ class TestContext(BaseContext):
         void main(){
             // get the light location in eye space
             vec3 EC_Light_location = normalize(gl_NormalMatrix * Light_location);
+
             // get the half light between the light ray and the viewpoint
             vec3 Light_half = normalize(EC_Light_location - vec3(0,0,-1));
+
             //get the weights for specular and diffuse light from the current view
             vec2 weights = phong_weightCalc(
                 EC_Light_location,
@@ -106,7 +105,8 @@ class TestContext(BaseContext):
                 baseNormal,
                 Material_shininess
             );
-            // return the fragment color
+
+            // return the fragment color with various lighting added in
             gl_FragColor = clamp(
                 // global ambient light
                 (Global_ambient * Material_ambient)
@@ -145,7 +145,7 @@ class TestContext(BaseContext):
                 print('Warning, no uniform: {}'.format(uniform))
             setattr(self, uniform+'_loc', location)
 
-        # do what we did before for vertes values
+        # do what we did before for shader attribute values
         attribute_vals = (
         'Vertex_position',
         'Vertex_normal')
@@ -160,11 +160,9 @@ class TestContext(BaseContext):
         BaseContext.Render(self, mode)
         glUseProgram(self.shader)
         try:
-            # binfd our two vbos
             self.coords.bind()
             self.indices.bind()
-            # set our stride value to
-            # be the number of bytes per coordinate
+            # set our stride value to be the number of bytes per coordinate
             stride = self.coords.data[0].nbytes
             try:
                 # set our uniform values to their values
@@ -183,29 +181,24 @@ class TestContext(BaseContext):
                 glEnableVertexAttribArray(self.Vertex_normal_loc)
                 glVertexAttribPointer(self.Vertex_position_loc,
                 3, GL_FLOAT, False, stride, self.coords)
-                # why do we just add 20 to all coords to get the normals?
-                # oh im dumb, this doesnt add that to the vbo, it just
-                # as before tells our code to start referencing the prebuilt
-                # normals, they start 20 bytes in.
                 glVertexAttribPointer(self.Vertex_normal_loc,
                 3, GL_FLOAT, False, stride, self.coords+(5*4))
-                # draw 'count' number of things
+                # draw 'self.count' number of things
+                # (this was stored when we made the sphere)
                 # notice that glDrawElements is different
                 # from glDrawArrays, this is the indexed
-                # vbo scheme where we reuse verts and just
-                # pass new indices to opengl
+                # vbo scheme where we reuse verts and render
+                # based on indices
                 glDrawElements(
                     GL_TRIANGLES, self.count,
                     GL_UNSIGNED_SHORT, self.indices
                 )
             finally:
-                # unbind and disable data
                 self.coords.unbind()
                 self.indices.unbind()
                 glDisableVertexAttribArray(self.Vertex_position_loc)
                 glDisableVertexAttribArray(self.Vertex_normal_loc)
         finally:
-            # stop using our shader
             glUseProgram(0)
 
 if __name__ == '__main__':
