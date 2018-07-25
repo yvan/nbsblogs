@@ -1,36 +1,28 @@
-# http://pyopengl.sourceforge.net/context/tutorials/shader_1.html
 '''
-conda create -n opengl-py2 python=2 -y
-pip install TTFQuery PyOpenGL PyOpenGL-accelerate
-pip install pydispatcher PyVRML97 PyVRML97-accelerate simpleparse
-pip install OpenGLContext
-conda install numpy
-pip install Pillow
-'''
+http://pyopengl.sourceforge.net/context/tutorials/shader_1.html
 
-'''
-main takeaway
+you can pack color data and position data in the same vbo then give offsets to
+glVertexPointer and glColorPointer so each certain portions of the data in the
+vbo.
 
-you can pack color data and position data in the same arrays
-then give offsets to glVertexPointer and glColorPointer so thery only ever refernce
-certain portions of the data in the vbo (i.e. always first 3)
+gl_Color is a legacy value that shows up to grab the color of each vertex in
+the vertex shader OpenGL does this automatically (probably
+via the glColorPointer)
 
-gl_Color is a legacy value that shows up to grab the color of each vertex in the vertex shader OpenGL
-does this automatically /(probably via the gl color pointer)
+we use a varying type value for the vertex color here this just allows us to
+pass a global value between vert and fragment shaders
 
-we use a varying type value here this just alloqs us to pass a global value between
-vert and fragment shaders
+i guess if we give our fragment shader each vertex color it just auto
+interpolates between.
 
-i guess if we give our fragment shader each vertex color it just auto interpolates between.
+you can think of the fragment shader as getting 3 vertexes and then choosing
+colors for the points in between.the vertex shader is amapping function from
+verts to points in space. the fragment shader is a mapping function from
+multiple points in space to a region of points, usually bound by the input
+points in space somehow.
 
-you can think of the fragment shader as getting 3 vertexes and then choosing colors for the poitns
-in between
-
-in  otherwords the vertex shader is amapping function from verts to points in spaceself.
-the fragment shader is a mapping function from multiple points in space to a region of points, usually
-bound by the input points in space somehowself.
-
-fragment shaders are called repeatedly and so you want to keep computation light there
+fragment shaders are called repeatedly and so you want to keep computation
+light inside the fragment shader
 
 '''
 
@@ -44,6 +36,8 @@ from OpenGL.GL import shaders
 class TestContext(BaseContext):
     def OnInit(self):
         vertex_s = '''
+        // use a varying value to pass information
+        // about color from the vertex to the fragment
         varying vec4 vertex_color;
         void main(){
             gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
@@ -51,14 +45,20 @@ class TestContext(BaseContext):
         }
         '''
         vertex = shaders.compileShader(vertex_s, GL_VERTEX_SHADER)
+
         fragment_s = '''
         varying vec4 vertex_color;
         void main(){
+            // interpolates values set into
+            // vertex_color from the vertex
+            // shader
             gl_FragColor = vertex_color;
         }
         '''
         fragment = shaders.compileShader(fragment_s, GL_FRAGMENT_SHADER)
         self.shader = shaders.compileProgram(vertex, fragment)
+
+        # create a vbo with vertex and color data
         self.vbo = vbo.VBO(
             array([
                 [  0, 1, 0,  0,1,0 ],
@@ -72,18 +72,22 @@ class TestContext(BaseContext):
                 [  2, 1, 0,  0,1,1 ],
             ], 'f')
         )
+
     def Render(self, mode):
         BaseContext.Render(self,mode)
         glUseProgram(self.shader)
         try:
             self.vbo.bind()
             try:
+                # tell opengl to look for vertices and colors
                 glEnableClientState(GL_VERTEX_ARRAY)
                 glEnableClientState(GL_COLOR_ARRAY)
+                # point to the data for vertices and color
                 glVertexPointer(3, GL_FLOAT, 24, self.vbo)
                 glColorPointer(3, GL_FLOAT, 24, self.vbo+12)
                 glDrawArrays(GL_TRIANGLES, 0, 9)
             finally:
+                # cleanup
                 self.vbo.unbind()
                 glDisableClientState(GL_VERTEX_ARRAY)
                 glDisableClientState(GL_COLOR_ARRAY)
