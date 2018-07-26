@@ -40,7 +40,7 @@ class TestContext(BaseContext):
             float n_dot_half = 0.0;
             // changed from tutorial 6 phong weight calc after my inblog
             // investigation
-            if (n_dot_pos > 0.0){
+            if (n_dot_pos >= 0.0){
                 n_dot_half = pow(max(0.0, dot(half_light, frag_normal)), shininess);
             }
             return vec2(n_dot_pos, n_dot_half);
@@ -185,7 +185,7 @@ class TestContext(BaseContext):
                 # setup all our vertices / normals and draw them
                 glEnableVertexAttribArray(self.Vertex_position_loc)
                 glEnableVertexAttribArray(self.Vertex_normal_loc)
-                
+
                 glVertexAttribPointer(self.Vertex_position_loc,
                 3, GL_FLOAT, False, stride, self.coords)
                 glVertexAttribPointer(self.Vertex_normal_loc,
