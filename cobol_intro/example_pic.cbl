@@ -27,4 +27,4 @@
               DISPLAY "WS-NAME :"WS-NAME.
               DISPLAY "W-ID :"WS-ID.
               DISPLAY "WS-ADDRESS :"WS-ADDRESS.
-            STOP RUN.
+              STOP RUN.
