@@ -1,0 +1,15 @@
+section .text
+global _start
+
+section .data
+hash db '1234'
+
+_start:
+mov edx,4
+mov ecx,hash
+mov ebx,1
+mov eax,4
+int 0x80
+
+mov eax,1
+int 0x80
